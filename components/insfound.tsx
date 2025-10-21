@@ -1,8 +1,22 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Home, Settings, Menu, X, PanelLeft, Bell, Copy, Globe, Bookmark, Sparkles, Send } from "lucide-react"
+import {
+  Home,
+  Settings,
+  Menu,
+  X,
+  PanelLeft,
+  Bell,
+  Copy,
+  Globe,
+  Bookmark,
+  Sparkles,
+  Send,
+  Trash2,
+  Heart,
+} from "lucide-react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -10,7 +24,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 
-const inspirationResults = [
+const mockInspirationResults = [
   {
     id: 1,
     title: "Minimalist SaaS Landing",
@@ -41,7 +55,7 @@ const inspirationResults = [
   },
 ]
 
-const siteInspirations = [
+const mockSiteInspirations = [
   {
     id: 1,
     title: "Stripe",
@@ -100,6 +114,15 @@ const sidebarItems = [
   },
 ]
 
+interface InspirationItem {
+  id: number | string
+  title: string
+  description?: string
+  url?: string
+  thumbnail: string
+  category: string
+}
+
 export function Insfound() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -108,6 +131,104 @@ export function Insfound() {
   const [urlInput, setUrlInput] = useState("")
   const [showCopyResults, setShowCopyResults] = useState(false)
   const [showSiteResults, setShowSiteResults] = useState(false)
+
+  const [copyLoading, setCopyLoading] = useState(false)
+  const [copyError, setCopyError] = useState("")
+  const [siteLoading, setSiteLoading] = useState(false)
+  const [siteError, setSiteError] = useState("")
+  const [copyResults, setCopyResults] = useState<InspirationItem[]>([])
+  const [siteResults, setSiteResults] = useState<InspirationItem[]>([])
+
+  const [savedInspirations, setSavedInspirations] = useState<InspirationItem[]>([])
+
+  useEffect(() => {
+    const saved = localStorage.getItem("insfound_saved")
+    if (saved) {
+      try {
+        setSavedInspirations(JSON.parse(saved))
+      } catch (e) {
+        console.error("Failed to load saved inspirations", e)
+      }
+    }
+  }, [])
+
+  const saveInspiration = (item: InspirationItem) => {
+    if (!isSaved(item.id)) {
+      const updated = [...savedInspirations, item]
+      setSavedInspirations(updated)
+      localStorage.setItem("insfound_saved", JSON.stringify(updated))
+    }
+  }
+
+  const removeInspiration = (id: number | string) => {
+    const updated = savedInspirations.filter((item) => item.id !== id)
+    setSavedInspirations(updated)
+    localStorage.setItem("insfound_saved", JSON.stringify(updated))
+  }
+
+  const isSaved = (id: number | string) => {
+    return savedInspirations.some((item) => item.id === id)
+  }
+
+  const handleCopySearch = async () => {
+    if (!copyInput.trim()) {
+      setCopyError("Please enter some copy to search")
+      return
+    }
+
+    setCopyLoading(true)
+    setCopyError("")
+    setCopyResults([])
+
+    try {
+      // Simulate API call with delay
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+
+      // Mock results based on input
+      const results = mockInspirationResults.map((item, idx) => ({
+        ...item,
+        id: `copy-${idx}`,
+      }))
+
+      setCopyResults(results)
+      setShowCopyResults(true)
+    } catch (error) {
+      setCopyError("Failed to search. Please try again.")
+      console.error("Search error:", error)
+    } finally {
+      setCopyLoading(false)
+    }
+  }
+
+  const handleSiteSearch = async () => {
+    if (!urlInput.trim()) {
+      setSiteError("Please enter at least one URL")
+      return
+    }
+
+    setSiteLoading(true)
+    setSiteError("")
+    setSiteResults([])
+
+    try {
+      // Simulate API call with delay
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+
+      // Mock results based on input
+      const results = mockSiteInspirations.map((item, idx) => ({
+        ...item,
+        id: `site-${idx}`,
+      }))
+
+      setSiteResults(results)
+      setShowSiteResults(true)
+    } catch (error) {
+      setSiteError("Failed to analyze sites. Please try again.")
+      console.error("Search error:", error)
+    } finally {
+      setSiteLoading(false)
+    }
+  }
 
   return (
     <div className="relative min-h-screen bg-white text-black">
@@ -218,7 +339,7 @@ export function Insfound() {
                 <Bell className="h-5 w-5" />
               </Button>
               <Avatar className="h-8 w-8 border border-black/20">
-                <AvatarImage src="/placeholder.svg?height=32&width=32" alt="User" />
+                <AvatarImage src="/user-avatar.jpg" alt="User" />
                 <AvatarFallback>IN</AvatarFallback>
               </Avatar>
             </div>
@@ -297,7 +418,10 @@ export function Insfound() {
                     <label className="block text-sm font-medium">Your Copy</label>
                     <textarea
                       value={copyInput}
-                      onChange={(e) => setCopyInput(e.target.value)}
+                      onChange={(e) => {
+                        setCopyInput(e.target.value)
+                        setCopyError("")
+                      }}
                       placeholder="Paste your marketing copy, headline, or tagline here..."
                       className="w-full p-4 border border-black/10 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent min-h-[200px] font-mono text-sm"
                       style={{
@@ -305,26 +429,37 @@ export function Insfound() {
                         backgroundSize: "20px 20px",
                       }}
                     />
+                    {copyError && <p className="text-red-500 text-sm">{copyError}</p>}
                     <div className="flex justify-end">
                       <Button
-                        onClick={() => setShowCopyResults(true)}
+                        onClick={handleCopySearch}
+                        disabled={copyLoading}
                         className="rounded-lg bg-black text-white hover:bg-black/90 gap-2"
                       >
-                        <Send className="w-4 h-4" />
-                        Find Inspirations
+                        {copyLoading ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Searching...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4" />
+                            Find Inspirations
+                          </>
+                        )}
                       </Button>
                     </div>
                   </div>
 
-                  {showCopyResults && (
+                  {showCopyResults && copyResults.length > 0 && (
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
                       <h3 className="text-xl font-bold">Inspiration Results</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {inspirationResults.map((item) => (
+                        {copyResults.map((item) => (
                           <motion.div
                             key={item.id}
                             whileHover={{ scale: 1.05 }}
-                            className="rounded-lg overflow-hidden border border-black/10 hover:border-black/30 transition-all cursor-pointer group"
+                            className="rounded-lg overflow-hidden border border-black/10 hover:border-black/30 transition-all cursor-pointer group relative"
                           >
                             <div className="aspect-video overflow-hidden bg-black/5">
                               <img
@@ -339,6 +474,15 @@ export function Insfound() {
                               </Badge>
                               <h4 className="font-semibold text-sm">{item.title}</h4>
                               <p className="text-xs text-black/60 mt-1">{item.description}</p>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="mt-3 w-full gap-2"
+                                onClick={() => saveInspiration(item)}
+                              >
+                                <Heart className={cn("w-4 h-4", isSaved(item.id) && "fill-current")} />
+                                {isSaved(item.id) ? "Saved" : "Save"}
+                              </Button>
                             </div>
                           </motion.div>
                         ))}
@@ -359,7 +503,10 @@ export function Insfound() {
                     <label className="block text-sm font-medium">Website URLs</label>
                     <textarea
                       value={urlInput}
-                      onChange={(e) => setUrlInput(e.target.value)}
+                      onChange={(e) => {
+                        setUrlInput(e.target.value)
+                        setSiteError("")
+                      }}
                       placeholder="Paste one or more URLs separated by commas (e.g., stripe.com, figma.com, apple.com)"
                       className="w-full p-4 border border-black/10 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent min-h-[120px] font-mono text-sm"
                       style={{
@@ -367,22 +514,33 @@ export function Insfound() {
                         backgroundSize: "20px 20px",
                       }}
                     />
+                    {siteError && <p className="text-red-500 text-sm">{siteError}</p>}
                     <div className="flex justify-end">
                       <Button
-                        onClick={() => setShowSiteResults(true)}
+                        onClick={handleSiteSearch}
+                        disabled={siteLoading}
                         className="rounded-lg bg-black text-white hover:bg-black/90 gap-2"
                       >
-                        <Send className="w-4 h-4" />
-                        Analyze & Find Similar
+                        {siteLoading ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Analyzing...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4" />
+                            Analyze & Find Similar
+                          </>
+                        )}
                       </Button>
                     </div>
                   </div>
 
-                  {showSiteResults && (
+                  {showSiteResults && siteResults.length > 0 && (
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
                       <h3 className="text-xl font-bold">Similar Designs Found</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {siteInspirations.map((item) => (
+                        {siteResults.map((item) => (
                           <motion.div
                             key={item.id}
                             whileHover={{ scale: 1.05 }}
@@ -401,6 +559,15 @@ export function Insfound() {
                               </Badge>
                               <h4 className="font-semibold text-sm">{item.title}</h4>
                               <p className="text-xs text-black/60 mt-1">{item.url}</p>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="mt-3 w-full gap-2"
+                                onClick={() => saveInspiration(item)}
+                              >
+                                <Heart className={cn("w-4 h-4", isSaved(item.id) && "fill-current")} />
+                                {isSaved(item.id) ? "Saved" : "Save"}
+                              </Button>
                             </div>
                           </motion.div>
                         ))}
@@ -416,10 +583,48 @@ export function Insfound() {
                     <h2 className="text-3xl font-bold mb-2">Saved Inspirations</h2>
                     <p className="text-black/60">Your collection of favorite design inspirations</p>
                   </div>
-                  <div className="rounded-lg border border-black/10 p-12 text-center">
-                    <Bookmark className="w-12 h-12 text-black/30 mx-auto mb-4" />
-                    <p className="text-black/60">No saved inspirations yet. Start exploring to save your favorites!</p>
-                  </div>
+                  {savedInspirations.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {savedInspirations.map((item) => (
+                        <motion.div
+                          key={item.id}
+                          whileHover={{ scale: 1.05 }}
+                          className="rounded-lg overflow-hidden border border-black/10 hover:border-black/30 transition-all cursor-pointer group relative"
+                        >
+                          <div className="aspect-video overflow-hidden bg-black/5">
+                            <img
+                              src={item.thumbnail || "/placeholder.svg"}
+                              alt={item.title}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                            />
+                          </div>
+                          <div className="p-4">
+                            <Badge variant="outline" className="rounded-md mb-2 text-xs">
+                              {item.category}
+                            </Badge>
+                            <h4 className="font-semibold text-sm">{item.title}</h4>
+                            <p className="text-xs text-black/60 mt-1">{item.description || item.url}</p>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="mt-3 w-full gap-2 text-red-500 hover:text-red-600"
+                              onClick={() => removeInspiration(item.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Remove
+                            </Button>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-black/10 p-12 text-center">
+                      <Bookmark className="w-12 h-12 text-black/30 mx-auto mb-4" />
+                      <p className="text-black/60">
+                        No saved inspirations yet. Start exploring to save your favorites!
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
